@@ -12,7 +12,8 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
-def label(path, weights_path, config_path):
+def label(Color_path, DacColor_path, weights_path, config_path):
+    if Color_path[-1] != "/": Color_path = Color_path + "/"
     with open(config_path) as config_buffer:
         config = json.load(config_buffer)
 
@@ -23,18 +24,18 @@ def label(path, weights_path, config_path):
                 max_box_per_image=config['model']['max_box_per_image'],
                 anchors=config['model']['anchors'])
     yolo.load_weights(weights_path)
-    for file in os.listdir(path):
+    for file in os.listdir(Color_path):
         if file.endswith('.jpg'):
             print(file)
-            image = cv2.imread(path + file)
-            boxes = yolo.predict(image)
-
+            image = cv2.imread(Color_path + file)
+            DacColor_image = cv2.imread(DacColor_path + file)
+            Color_boxes = yolo.predict(image)
+            DacColor_boxes = yolo.predict(DacColor_image)
             image_h, image_w, chanel = image.shape
-
             root = ET.Element("annotation")
-            ET.SubElement(root, "folder").text = path.split("/")[-2]
+            ET.SubElement(root, "folder").text = Color_path.split("/")[-2]
             ET.SubElement(root, "filename").text = file
-            ET.SubElement(root, "path").text = path + file
+            ET.SubElement(root, "path").text = Color_path + file
 
             source = ET.SubElement(root, "source")
             ET.SubElement(source, "database").text = "Unknown"
@@ -46,7 +47,7 @@ def label(path, weights_path, config_path):
 
             ET.SubElement(root, "segmented").text = "0"
             ObjectsFound = []
-            for box in boxes:
+            for box in Color_boxes:
 
                 xmin = int(box.xmin * image_w)
                 ymin = int(box.ymin * image_h)
@@ -58,21 +59,27 @@ def label(path, weights_path, config_path):
                 if labels[box.get_label()] == "None_Object": continue
                 if xmin <= 0: continue
                 # cv2.rectangle(image_color, (xmin, ymin), (xmax, ymax), (0, 255, 0), 3)
-                if (box.get_score() > 0.6):
+                if box.get_score() > 0.6:
                     ObjectsFound.append([labels[box.get_label()], xmin, ymin, box.get_score()])
                     # cv2.putText(image_color, sObj, (xmin, ymin - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.25, (0, 255, 0), 1)
+                for box2 in DacColor_boxes:
+                    if xmin - 10 < int(box2.xmin * image_w) < xmin + 10 and ymin - 10 < int(
+                            box2.ymin * image_h) < ymin + 10:
+                        if box2.get_score() > box.get_score():
+                            name = labels[box2.get_label()]
+                        else:
+                            nane = labels[box.get_label()]
 
-                object = ET.SubElement(root, "object")
-                ET.SubElement(object, "name").text = labels[box.get_label()]
-                ET.SubElement(object, "pose").text = "Unspecified"
-                ET.SubElement(object, "truncated").text = "0"
-                ET.SubElement(object, "difficult").text = "0"
-                bndbox = ET.SubElement(object, "bndbox")
+                    object = ET.SubElement(root, "object")
+                    ET.SubElement(object, "name").text = name
+                    ET.SubElement(object, "pose").text = "Unspecified"
+                    ET.SubElement(object, "truncated").text = "0"
+                    ET.SubElement(object, "difficult").text = "0"
+                    bndbox = ET.SubElement(object, "bndbox")
 
-                ET.SubElement(bndbox, "xmin").text = str(xmin - 5)
-                ET.SubElement(bndbox, "ymin").text = str(ymin - 5)
-                ET.SubElement(bndbox, "xmax").text = str(xmax + 5)
-                ET.SubElement(bndbox, "ymax").text = str(ymax + 5)
+                    ET.SubElement(bndbox, "xmin").text = str(xmin - 5)
+                    ET.SubElement(bndbox, "ymin").text = str(ymin - 5)
+                    ET.SubElement(bndbox, "xmax").text = str(xmax + 5)
+                    ET.SubElement(bndbox, "ymax").text = str(ymax + 5)
             tree = ET.ElementTree(root)
-            tree.write(path + file[:-3] + 'xml')
-
+            tree.write(Color_path + file[:-3] + 'xml')

@@ -37,10 +37,11 @@ def bndbox_change(tree, pl=10, pt=10, pr=10, pb=10, label=[]):
 
 
 def get_label(path):
+    if path[-1] != "/": path = path + "/"
     label = []
     for file in os.listdir(path):
         if file.endswith(".xml"):
-            tree = ET.parse(dir + '/' + file)
+            tree = ET.parse(path + '/' + file)
             for i in tree.iter('object'):
                 if not i.find('name').text in label:
                     label.append(i.find('name').text)
@@ -89,8 +90,9 @@ def label_change(path, src, dst):
     return count
 
 
-def labeler(path, weights_path, config_path):
-    label(path,
+def labeler(Color_path, DacColor_path, weights_path, config_path):
+    label(Color_path,
+          DacColor_path,
           weights_path=weights_path,
           config_path=config_path)
 
@@ -159,3 +161,11 @@ def convert_annotation_to_voc(xml_file_path, list_file, classes):
         b = (int(xmlbox.find('xmin').text), int(xmlbox.find('ymin').text), int(xmlbox.find('xmax').text),
              int(xmlbox.find('ymax').text))
         list_file.write(" " + ",".join([str(a) for a in b]) + ',' + str(cls_id))
+
+
+# print(get_label("/home/atis/Desktop/Black_Only/DacColor"))
+
+labeler(Color_path="/home/atis/Dataset/NewDataset/ImageDataset_h5_Light/Color/",
+        DacColor_path="/home/atis/Dataset/NewDataset/ImageDataset_h5_Light/DacColor/",
+        weights_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/atis_NonObject2.h5',
+        config_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/config_noobj.json')
