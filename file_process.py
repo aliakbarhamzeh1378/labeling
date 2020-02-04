@@ -1,7 +1,17 @@
 import os
 import xml.etree.cElementTree as ET
 
+import cv2
+from tqdm import tqdm
+
 from Auto_label.predict import label
+
+
+def walkdir(folder):
+    """Walk through each files in a directory"""
+    for dirpath, dirs, files in os.walk(folder):
+        for filename in files:
+            yield os.path.abspath(os.path.join(dirpath, filename))
 
 
 def add_prefix(path, prefix=None):
@@ -90,9 +100,8 @@ def label_change(path, src, dst):
     return count
 
 
-def labeler(Color_path, DacColor_path, weights_path, config_path):
-    label(Color_path,
-          DacColor_path,
+def labeler(path, weights_path, config_path):
+    label(path,
           weights_path=weights_path,
           config_path=config_path)
 
@@ -163,9 +172,62 @@ def convert_annotation_to_voc(xml_file_path, list_file, classes):
         list_file.write(" " + ",".join([str(a) for a in b]) + ',' + str(cls_id))
 
 
+def crop_from_xml(image_path, label_path, save_path):
+    if image_path[-1] != "/": image_path = image_path + "/"
+    if label_path[-1] != "/": label_path = label_path + "/"
+    if save_path[-1] != "/": save_path = save_path + "/"
+
+    for file in tqdm(walkdir(label_path), total=len(os.listdir(label_path)), unit="files"):
+        file = file.split("/")[-1]
+        if file.endswith(".xml"):
+
+            if os.path.exists(image_path + file[:-3] + 'jpg'):
+                tree = ET.parse(label_path + file)
+                obj = tree.find('object')
+                xmin = obj.find('bndbox/xmin').text
+                ymin = obj.find('bndbox/ymin').text
+                xmax = obj.find('bndbox/xmax').text
+                ymax = obj.find('bndbox/ymax').text
+                img = cv2.imread(image_path + file[:-3] + 'jpg')
+                crop_img = img[int(ymin):int(ymax), int(xmin):int(xmax)]
+                cv2.imwrite(save_path + file[:-3] + 'jpg', crop_img)
+
+
+def resize_image_label(image_path, label_path, width=640, height=480, xml_save_path="", image_save_path=""):
+    if image_path[-1] != "/": image_path = image_path + "/"
+    if label_path[-1] != "/": label_path = label_path + "/"
+    if xml_save_path[-1] != "/": xml_save_path = xml_save_path + "/"
+    if image_save_path[-1] != "/": image_save_path = image_save_path + "/"
+    if not os.path.exists(xml_save_path): os.mkdir(xml_save_path)
+    if not os.path.exists(image_save_path): os.mkdir(image_save_path)
+    for file in tqdm(walkdir(label_path), total=len(os.listdir(label_path)), unit="files"):
+        file = file.split("/")[-1]
+        if file.endswith(".xml"):
+            if os.path.exists(image_path + file[:-3] + 'jpg'):
+                img = cv2.imread(image_path + file[:-3] + 'jpg')
+                image_height, image_width, _ = img.shape
+                tree = ET.parse(label_path + file)
+                for i in tree.iter('object'):
+                    xmin = i.find('bndbox/xmin').text
+                    ymin = i.find('bndbox/ymin').text
+                    xmax = i.find('bndbox/xmax').text
+                    ymax = i.find('bndbox/ymax').text
+                    i.find('bndbox/xmin').text = str((int(xmin) * width) / image_width)
+                    i.find('bndbox/ymin').text = str((int(ymin) * height) / image_height)
+                    i.find('bndbox/xmax').text = str((int(xmax) * width) / image_width)
+                    i.find('bndbox/ymax').text = str((int(ymax) * height) / image_height)
+                dim = (width, height)
+                resized = cv2.resize(img, dim)
+                cv2.imwrite(image_save_path + file[:-3] + 'jpg', resized)
+                tree.write(xml_save_path + file)
+
+
 # print(get_label("/home/atis/Desktop/Black_Only/DacColor"))
 
-labeler(Color_path="/home/atis/Dataset/NewDataset/ImageDataset_h5_Light/Color/",
-        DacColor_path="/home/atis/Dataset/NewDataset/ImageDataset_h5_Light/DacColor/",
-        weights_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/atis_NonObject2.h5',
-        config_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/config_noobj.json')
+# labeler(path="/home/atis/Dataset/NewDataset/ImageDataset_h5_noLight/Color/",
+#         weights_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/atis_NonObject2.h5',
+#         config_path='/home/atis/Atis/StateMachine/Stonewall/revision/New_AUS_Vision/config_noobj.json')
+
+
+resize_image_label('/home/atis/Ros/Shovel/ImageDataset/Images_orginal',
+                   '/home/atis/Ros/Shovel/ImageDataset/Xml_original')
