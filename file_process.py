@@ -212,10 +212,10 @@ def resize_image_label(image_path, label_path, width=640, height=480, xml_save_p
                     ymin = i.find('bndbox/ymin').text
                     xmax = i.find('bndbox/xmax').text
                     ymax = i.find('bndbox/ymax').text
-                    i.find('bndbox/xmin').text = str((int(xmin) * width) / image_width)
-                    i.find('bndbox/ymin').text = str((int(ymin) * height) / image_height)
-                    i.find('bndbox/xmax').text = str((int(xmax) * width) / image_width)
-                    i.find('bndbox/ymax').text = str((int(ymax) * height) / image_height)
+                    i.find('bndbox/xmin').text = str((int(xmin - 15) * width) / image_width)
+                    i.find('bndbox/ymin').text = str((int(ymin - 15) * height) / image_height)
+                    i.find('bndbox/xmax').text = str((int(xmax + 15) * width) / image_width)
+                    i.find('bndbox/ymax').text = str((int(ymax + 15) * height) / image_height)
                 dim = (width, height)
                 resized = cv2.resize(img, dim)
                 cv2.imwrite(image_save_path + file[:-3] + 'jpg', resized)
@@ -230,4 +230,7 @@ def resize_image_label(image_path, label_path, width=640, height=480, xml_save_p
 
 
 resize_image_label('/home/atis/Ros/Shovel/ImageDataset/Images_orginal',
-                   '/home/atis/Ros/Shovel/ImageDataset/Xml_original')
+                   '/home/atis/Ros/Shovel/ImageDataset/Xml_original',
+                   640, 480,
+                   xml_save_path='/home/atis/Ros/Shovel/ImageDataset/Xml_416x416/',
+                   image_save_path='/home/atis/Ros/Shovel/ImageDataset/Images_416x416/')
